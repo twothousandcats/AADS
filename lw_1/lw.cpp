@@ -1,21 +1,21 @@
 /*
- 1. УСЛОВИЕ ЗАДАЧИ:
-    У множества шпионов, собравшихся вместе для наблюдения секретного объекта,
-    имеется единственный бинокль. Сформировалась очередь на этот бинокль.
-    Для каждого шпиона задан период наблюдения в минутах и предельное время нахождения в очереди.
-    После наблюдения каждый шпион становится снова в конец очереди.
-    Как только для какого-либо шпиона истекает предельное время нахождения в очереди,
-    он покидает ее (даже если в этот момент владеет биноклем) и отправляется к резиденту.
-    Вывести протокол наблюдения шпионов за объектом(9).
+    1. УСЛОВИЕ ЗАДАЧИ:
+        У множества шпионов, собравшихся вместе для наблюдения секретного объекта,
+        имеется единственный бинокль. Сформировалась очередь на этот бинокль.
+        Для каждого шпиона задан период наблюдения в минутах и предельное время нахождения в очереди.
+        После наблюдения каждый шпион становится снова в конец очереди.
+        Как только для какого-либо шпиона истекает предельное время нахождения в очереди,
+        он покидает ее (даже если в этот момент владеет биноклем) и отправляется к резиденту.
+        Вывести протокол наблюдения шпионов за объектом(9).
 
     2. АВТОР:
-    Потапенко Максим Владимирович
+        Потапенко Максим Владимирович
 
     3. СРЕДА ВЫПОЛНЕНИЯ
-    Clang, MacOS
+        Clang, MacOS
 
     4. ИСТОЧНИКИ
-    Queue train: https://leetcode.com/problem-list/queue/
+        Queue train: https://leetcode.com/problem-list/queue/
 */
 #include <iostream>
 #include <fstream>
@@ -115,21 +115,10 @@ void simulateObservation(Queue& q, int spyCount) {
     int remainingSpies = spyCount;
 
     while (remainingSpies > 0) {
-        currentTime++;
         bool isChanged = false;
 
-        if (currentSpy != nullptr) { // счетчик для выбранного
-            currentSpy->totalTimeSpent++;
-        }
-
-        Spy* temp = q.front;
-        while (temp != nullptr) { // для остальных
-            temp->totalTimeSpent++;
-            temp = temp->next;
-        }
-
         // Проверяем шпионов в очереди на превышение времени ожидания
-        temp = q.front;
+        Spy* temp = q.front;
         Spy* prev = nullptr;
         while (temp != nullptr) {
             Spy* next = temp->next;
@@ -164,7 +153,9 @@ void simulateObservation(Queue& q, int spyCount) {
 
             // Проверяем, завершил ли шпион наблюдение
             if (currentSpy->currentObservationTime >= currentSpy->observationTime) {
-                cout << "Момент времени " << currentTime - 1 << ": " << currentSpy->name << " окончил наблюдение." << endl;
+                if (remainingSpies > 1) {
+                    cout << "Момент времени " << currentTime << ": " << currentSpy->name << " окончил наблюдение." << endl;
+                }
 
                 // Проверяем, может ли шпион продолжать
                 if (currentSpy->totalTimeSpent < currentSpy->maxQueueTime || currentSpy->maxQueueTime == -1) {
@@ -198,12 +189,14 @@ void simulateObservation(Queue& q, int spyCount) {
             currentSpy = dequeue(q);
             currentSpy->currentObservationTime = 0;
             currentSpy->isObserving = true;
-            cout << "Момент времени " << currentTime - 1 << ": " << currentSpy->name << " приступил к наблюдению." << endl;
+            if (remainingSpies > 1) {
+                cout << "Момент времени " << currentTime << ": " << currentSpy->name << " приступил к наблюдению." << endl;
+            }
             isChanged = true;
         }
 
         // Вывод состояния
-        if (isChanged) {
+        if (isChanged && remainingSpies > 1) {
             cout << "Текущий наблюдатель: " << (currentSpy ? currentSpy->name : "нет") << endl;
             cout << "Очередь: ";
             temp = q.front;
@@ -215,6 +208,17 @@ void simulateObservation(Queue& q, int spyCount) {
             cout << "Осталось шпионов: " << remainingSpies << endl;
             cout << "" << endl;
         }
+
+        if (currentSpy != nullptr) { // счетчик для выбранного
+            currentSpy->totalTimeSpent++;
+        }
+
+        temp = q.front;
+        while (temp != nullptr) { // для остальных
+            temp->totalTimeSpent++;
+            temp = temp->next;
+        }
+        currentTime++;
     }
 
     cout << "\n=== Все шпионы завершили работу ===" << endl;
