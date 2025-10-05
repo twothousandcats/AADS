@@ -39,30 +39,62 @@
 
 using namespace std;
 
+/**
+ * @brief Узел генеалогического дерева.
+ *
+ * Представляет одного человека в родословной.
+ * Содержит имя, указатель на родителя и список детей.
+ */
 struct Node {
     string name;
     vector<Node *> children;
     Node *parent = nullptr;
 
-    explicit Node(string n) : name(std::move(n)) {}
+    explicit Node(string n) : name(std::move(n)) {
+    }
 };
 
-void deleteTree(const Node *node) {
-    if (!node) return;
-    for (const Node *child: node->children) {
+/**
+ * @brief Рекурсивное освобождение памяти, занятой деревом.
+ *
+ * @param root Указатель на корень поддерева для удаления.
+ */
+void deleteTree(const Node *root) {
+    if (!root) {
+        return;
+    }
+
+    for (const Node *child: root->children) {
         deleteTree(child);
     }
-    delete node;
+
+    delete root;
 }
 
-void printTree(const Node *node, int depth = 0) {
-    if (!node) return;
-    cout << string(depth * 2, '_') << node->name << endl;
-    for (const Node *child: node->children) {
+/**
+ * @brief Рекурсивный вывод дерева в консоль с отступами.
+ *
+ * @param root Указатель на корень поддерева.
+ * @param depth Глубина вложенности (по умолчанию 0).
+ */
+void printTree(const Node *root, const int depth = 0) {
+    if (!root) {
+        return;
+    }
+
+    cout << string(depth * 2, '_') << root->name << endl;
+    for (const Node *child: root->children) {
         printTree(child, depth + 1);
     }
 }
 
+/**
+ * @brief Поиск узла по имени в дереве (обход в глубину).
+ *
+ * @param root Корень дерева, в котором ищем.
+ * @param name Имя искомого человека.
+ * @return Указатель на узел, если найден; nullptr — иначе.
+ */
 Node *findNode(Node *root, const string &name) {
     if (!root) return nullptr;
     if (root->name == name) return root;
@@ -74,6 +106,14 @@ Node *findNode(Node *root, const string &name) {
     return nullptr;
 }
 
+/**
+ * @brief Получает путь от корня дерева до заданного узла.
+ *
+ * Путь возвращается в виде вектора имён, начиная с корня.
+ *
+ * @param node Узел, до которого строится путь.
+ * @return Вектор имён от корня до node.
+ */
 vector<string> getPathToRoot(const Node *node) {
     vector<string> path;
     while (node) {
@@ -84,6 +124,15 @@ vector<string> getPathToRoot(const Node *node) {
     return path;
 }
 
+/**
+ * @brief Находит ближайшего общего предка двух узлов.
+ *
+ * Использует пути от корня до каждого узла и сравнивает их.
+ *
+ * @param a Первый узел.
+ * @param b Второй узел.
+ * @return Имя ближайшего общего предка или пустая строка при ошибке.
+ */
 string findLCA(const Node *a, const Node *b) {
     if (!a || !b) return "";
     const auto pathA = getPathToRoot(a);
@@ -101,8 +150,20 @@ string findLCA(const Node *a, const Node *b) {
     return lca;
 }
 
+/**
+ * @brief Проверяет, является ли ancestor строгим предком descendant.
+ *
+ * Сам человек не считается своим предком. Проверка начинается с родителя descendant.
+ *
+ * @param ancestor Потенциальный предок.
+ * @param descendant Потенциальный потомок.
+ * @return true, если ancestor — предок descendant и ancestor != descendant.
+ */
 bool isAncestor(const Node *ancestor, const Node *descendant) {
-    if (!ancestor || !descendant) return false;
+    if (!ancestor || !descendant || ancestor == descendant) {
+        return false;
+    }
+    descendant = descendant->parent;
     while (descendant) {
         if (descendant == ancestor) return true;
         descendant = descendant->parent;
@@ -110,6 +171,15 @@ bool isAncestor(const Node *ancestor, const Node *descendant) {
     return false;
 }
 
+/**
+ * @brief Парсит строку из файла и извлекает уровень вложенности и имя.
+ *
+ * Строка может начинаться с нуля или более символов '*', за которыми следует имя.
+ * Пробелы по краям имени игнорируются.
+ *
+ * @param line Строка из входного файла.
+ * @return Пара: (уровень вложенности, имя). Если строка некорректна — (-1, "").
+ */
 pair<int, string> parseLine(const string &line) {
     if (line.empty()) return {-1, ""};
 
@@ -128,6 +198,15 @@ pair<int, string> parseLine(const string &line) {
     return {static_cast<int>(starCount), name};
 }
 
+/**
+ * @brief Строит генеалогическое дерево из списка пар (уровень, имя).
+ *
+ * Первый элемент должен иметь уровень 0 (корень). Используется стек для
+ * восстановления иерархии родитель-ребёнок.
+ *
+ * @param lines Вектор пар (уровень, имя), полученный из файла.
+ * @return Указатель на корень дерева или nullptr при ошибке.
+ */
 Node *buildTreeFromLines(const vector<pair<int, string> > &lines) {
     if (lines.empty() || lines[0].first != 0) {
         if (lines.empty()) {
@@ -166,6 +245,12 @@ Node *buildTreeFromLines(const vector<pair<int, string> > &lines) {
     return root;
 }
 
+/**
+ * @brief Загружает дерево из файла с заданным именем.
+ *
+ * @param filename Имя файла для загрузки.
+ * @return Указатель на корень дерева или nullptr при ошибке.
+ */
 Node *loadTreeFromFile(const string &filename) {
     ifstream file(filename);
     if (!file.is_open()) {
@@ -186,6 +271,11 @@ Node *loadTreeFromFile(const string &filename) {
     return buildTreeFromLines(lines);
 }
 
+/**
+ * @brief Обрабатывает запрос пользователя на проверку родственных связей.
+ *
+ * @param root Корень дерева.
+ */
 void handleRelationshipQuery(Node *root) {
     cout << "Введите имя первого человека: ";
     string nameA, nameB;
