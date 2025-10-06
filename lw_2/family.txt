@@ -1,16 +1,16 @@
 John I
-  Ashley
-  Alex
-    Chelsea
-    Zachary
-      Eve
-      Gregory
-        Max
-  Nancy
-  Sebastian
-    Rickey
-    John II
-  Angela
-  Gorge
-    Sophia
-  Jerry
+*Ashley
+*Alex
+**Chelsea
+**Zachary
+***Eve
+***Gregory
+****Max
+*Nancy
+*Sebastian
+**Rickey
+**John II
+*Angela
+*Gorge
+**Sophia
+*Jerry
