@@ -1,0 +1,6 @@
+4 5
+Moscow Paris 10
+Moscow Berlin 20
+Paris Berlin 15
+Berlin Vienna 25
+Paris Vienna 5
