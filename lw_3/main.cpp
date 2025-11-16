@@ -30,20 +30,29 @@
 #include <string>
 #include <climits>
 #include <algorithm>
+#include <vector>
 
-/// Тип графа: отображение города в список соседей с весами дорог
 using RoadNetwork = std::map<std::string, std::vector<std::pair<std::string, int> > >;
 
 /**
- * @brief Находит максимальную массу груза, которую можно провезти от start до finish.
+ * @brief Результат поиска: максимальный груз и путь
+ */
+struct PathResult {
+    int maxCargo;
+    std::vector<std::string> path;
+};
+
+/**
+ * @brief Находит максимальную массу груза и путь от start до finish.
  * Используется модифицированный алгоритм Дейкстры (максимизация минимального веса на пути).
  */
-int findMaxCargoWeight(
+PathResult findMaxCargoWeightWithPath(
     const RoadNetwork &network,
     const std::string &start,
     const std::string &finish
 ) {
     std::map<std::string, int> maxMinWeight;
+    std::map<std::string, std::string> parent; // для восстановления пути
     std::priority_queue<std::pair<int, std::string> > pq; // значение узкого места, имя
 
     for (const auto &cityNode: network) {
@@ -52,35 +61,45 @@ int findMaxCargoWeight(
 
     maxMinWeight[start] = INT_MAX;
     pq.emplace(INT_MAX, start);
+    parent[start] = ""; // стартовый узел без родителя
 
     while (!pq.empty()) {
-        // берем город с наибольшей пропускной способностью
-        // по дефолту в priority_queue он будет определен сверху
         int currentBottleneck = pq.top().first;
         std::string currentCity = pq.top().second;
         pq.pop();
 
-        // старое пропустим
         if (currentBottleneck != maxMinWeight[currentCity]) {
             continue;
         }
 
-        // обходить соседей
         for (const auto &edge: network.at(currentCity)) {
             const std::string &neighbor = edge.first;
             int roadCapacity = edge.second;
-            // взять минимальное среди текущего и нового значения
             int newBottleneck = std::min(currentBottleneck, roadCapacity);
 
-            // обновить путь, если новое меньше
             if (newBottleneck > maxMinWeight[neighbor]) {
                 maxMinWeight[neighbor] = newBottleneck;
+                parent[neighbor] = currentCity;
                 pq.emplace(newBottleneck, neighbor);
             }
         }
     }
 
-    return maxMinWeight[finish];
+    // Восстановление пути
+    std::vector<std::string> path;
+    if (maxMinWeight[finish] == 0 && finish != start) {
+        // Путь не существует
+        return {0, {}};
+    }
+
+    std::string current = finish;
+    while (!current.empty()) {
+        path.push_back(current);
+        current = parent[current];
+    }
+    std::reverse(path.begin(), path.end());
+
+    return {maxMinWeight[finish], path};
 }
 
 /**
@@ -133,7 +152,8 @@ void displayCities(
  */
 void handleRouteQuery(
     const RoadNetwork &roadNetwork,
-    const std::set<std::string> &allCities
+    const std::set<std::string> &allCities,
+    const std::string &filename
 ) {
     std::string origin, intermediate, destination;
     std::cout << "Введите три города: откуда, через какой, куда (через пробел): ";
@@ -152,22 +172,42 @@ void handleRouteQuery(
         return;
     }
 
-    const int weightPart1 = findMaxCargoWeight(roadNetwork, origin, intermediate);
-    const int weightPart2 = findMaxCargoWeight(roadNetwork, intermediate, destination);
+    PathResult part1 = findMaxCargoWeightWithPath(roadNetwork, origin, intermediate);
+    PathResult part2 = findMaxCargoWeightWithPath(roadNetwork, intermediate, destination);
 
-    if (weightPart1 == 0 || weightPart2 == 0) {
+    if (part1.maxCargo == 0 || part2.maxCargo == 0) {
         std::cout << "Невозможно проложить маршрут через '" << intermediate << "'." << std::endl;
-    } else {
-        const int maxCargo = std::min(weightPart1, weightPart2);
-        std::cout << "Максимальный груз, который можно доставить из '"
-                << origin << "' в '" << destination
-                << "' через '" << intermediate << "': "
-                << maxCargo << std::endl;
+        return;
     }
+
+    int maxCargo = std::min(part1.maxCargo, part2.maxCargo);
+
+    // Собираем полный путь без дублирования промежуточного города
+    std::vector<std::string> fullPath = part1.path;
+    fullPath.insert(fullPath.end(), part2.path.begin() + 1, part2.path.end());
+
+    // Вывод
+    std::cout << "Максимальный груз, который можно доставить из '"
+            << origin << "' в '" << destination
+            << "' через '" << intermediate << "': "
+            << maxCargo << std::endl;
+
+    std::ofstream outputFile;
+    outputFile.open(filename);
+    outputFile << "Путь: " << std::endl;;
+    for (size_t i = 0; i < fullPath.size(); ++i) {
+        if (i > 0) {
+            outputFile << " -> ";
+            outputFile << std::endl;
+        }
+        outputFile << fullPath[i];
+    }
+    outputFile << std::endl;
+    outputFile.close();
 }
 
 /**
- * @brief Формирует главное мени и обрабатывает выбор пользователя
+ * @brief Формирует главное меню и обрабатывает выбор пользователя
  */
 void runMenu(
     const RoadNetwork &roadNetwork,
@@ -175,7 +215,7 @@ void runMenu(
 ) {
     int userChoice;
     do {
-        std::cout << "Меню:" << std::endl;
+        std::cout << "\nМеню:" << std::endl;
         std::cout << "1 - вывод городов" << std::endl;
         std::cout << "2 - ввод городов (откуда, через, куда)" << std::endl;
         std::cout << "3 - выход" << std::endl;
@@ -187,7 +227,7 @@ void runMenu(
                 displayCities(allCities);
                 break;
             case 2:
-                handleRouteQuery(roadNetwork, allCities);
+                handleRouteQuery(roadNetwork, allCities, "fout.txt");
                 break;
             case 3:
                 std::cout << "Выход из программы." << std::endl;
