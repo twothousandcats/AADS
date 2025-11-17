@@ -7,9 +7,9 @@
 using namespace std;
 
 void getSettingValues(
-    unsigned &count,
-    unsigned &minValue,
-    unsigned &maxValue
+    double &count,
+    double &minValue,
+    double &maxValue
 ) {
     cout << "Введите количество чисел, минимальное и максимальное через пробел" << endl;
     cin >> count >> minValue >> maxValue;
@@ -28,8 +28,8 @@ void getSortType(
 
 void generateData(
     vector<int> &data,
-    const unsigned minVal,
-    const unsigned maxVal
+    const double minVal,
+    const double maxVal
 ) {
     random_device rd;
     mt19937 gen(rd());
@@ -80,7 +80,7 @@ void writeToFile(
 }
 
 int main() {
-    unsigned count, minValue, maxValue;
+    double count, minValue, maxValue;
     int orderType = 0;
     getSettingValues(count, minValue, maxValue);
     while (orderType != 1 && orderType != 2 && orderType != 3) {
