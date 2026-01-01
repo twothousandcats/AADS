@@ -17,10 +17,12 @@ int getHeight(const Node *node) {
     return node ? node->height : 0;
 }
 
+// -1, 0, 1
 int getBalanceFactor(const Node *node) {
     return node ? getHeight(node->left) - getHeight(node->right) : 0;
 }
 
+// Пересчитывает высоту узла на основе высот его детей
 void fixHeight(Node *node) {
     if (node) {
         node->height = max(getHeight(node->left), getHeight(node->right)) + 1;
@@ -54,22 +56,24 @@ Node *balance(Node *node) {
 
     if (getBalanceFactor(node) == 2) {
         if (getBalanceFactor(node->left) < 0) {
-            node->left = rotateLeft(node->left);
+            node->left = rotateLeft(node->left); // LR-случай
         }
-        return rotateRight(node);
+
+        return rotateRight(node); // LL-случай
     }
 
     if (getBalanceFactor(node) == -2) {
         if (getBalanceFactor(node->right) > 0) {
-            node->right = rotateRight(node->right);
+            node->right = rotateRight(node->right); // RL-случай
         }
 
-        return rotateLeft(node);
+        return rotateLeft(node); // RR-случай
     }
 
     return node;
 }
 
+// с использованием стека в куче
 Node *insert(
     Node *root,
     const int key
