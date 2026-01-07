@@ -18,47 +18,50 @@ using namespace std;
 // Загрузка дерева из файла
 bool loadTree(
     const string &filename,
-    int &count,
-    vector<vector<int> > &adj
+    int &totalVertices,
+    vector<vector<int> > &adjacencyList
 ) {
-    ifstream fin(filename);
-    if (!fin.is_open()) {
+    ifstream input_file(filename);
+    if (!input_file.is_open()) {
         cerr << "Ошибка: не удалось открыть файл '" << filename << "'\n";
         return false;
     }
 
-    fin >> count;
-    if (count < 1) {
+    input_file >> totalVertices;
+    if (totalVertices < 1) {
         cerr << "Ошибка: некорректное число вершин\n";
         return false;
     }
 
-    adj.assign(count + 1, vector<int>());
-    for (int i = 0; i < count - 1; ++i) {
-        int u, v;
-        fin >> u >> v;
-        if (u < 1 || u > count || v < 1 || v > count) {
+    adjacencyList.assign(totalVertices + 1, vector<int>());
+    for (int edge_index = 0; edge_index < totalVertices - 1; ++edge_index) {
+        int first_vertex, second_vertex;
+        input_file >> first_vertex >> second_vertex;
+        if (first_vertex < 1 || first_vertex > totalVertices ||
+            second_vertex < 1 || second_vertex > totalVertices) {
             cerr << "Ошибка: некорректный номер компьютера\n";
             return false;
         }
-        adj[u].push_back(v);
-        adj[v].push_back(u);
+        adjacencyList[first_vertex].push_back(second_vertex);
+        adjacencyList[second_vertex].push_back(first_vertex);
     }
-    fin.close();
+    input_file.close();
     return true;
 }
 
-// Вывод дерева в виде списка смежности
+// Вывод дерева списком смежности
 void printTree(
-    const vector<vector<int> > &adj,
-    int count
+    const vector<vector<int> > &adjacencyList,
+    int totalVertices
 ) {
     cout << "Дерево:\n";
-    for (int i = 1; i <= count; ++i) {
-        cout << i << ": ";
-        for (size_t j = 0; j < adj[i].size(); ++j) {
-            if (j > 0) cout << ", ";
-            cout << adj[i][j];
+    for (int vertex = 1; vertex <= totalVertices; ++vertex) {
+        cout << vertex << ": ";
+        for (size_t neighborIndex = 0; neighborIndex < adjacencyList[vertex].size(); ++neighborIndex) {
+            if (neighborIndex > 0) {
+                cout << ", ";
+            }
+            cout << adjacencyList[vertex][neighborIndex];
         }
         cout << '\n';
     }
@@ -66,48 +69,49 @@ void printTree(
 
 // Поиск центров дерева
 vector<int> findCenters(
-    const vector<vector<int> > &adj,
-    int n
+    const vector<vector<int> > &adjacencyList,
+    int totalVertices
 ) {
-    if (n == 1) {
+    if (totalVertices == 1) {
         return {1};
     }
 
-    vector<int> degree(n + 1, 0);
-    for (int i = 1; i <= n; ++i) {
-        degree[i] = adj[i].size();
+    vector<int> vertexDegree(totalVertices + 1, 0);
+    for (int vertex = 1; vertex <= totalVertices; ++vertex) {
+        vertexDegree[vertex] = static_cast<int>(adjacencyList[vertex].size());
     }
 
-    queue<int> q;
-    for (int i = 1; i <= n; ++i) {
-        if (degree[i] == 1) {
-            q.push(i);
+    queue<int> leafQueue;
+    for (int vertex = 1; vertex <= totalVertices; ++vertex) {
+        if (vertexDegree[vertex] == 1) {
+            leafQueue.push(vertex);
         }
     }
 
-    int remaining = n;
-    // Копируем degree, чтобы не портить оригинал
-    vector<int> deg = degree;
+    int remainingVertices = totalVertices;
+    vector<int> currentDegree = vertexDegree; // копия для модификации
 
-    while (remaining > 2) {
-        int leafCount = q.size();
-        remaining -= leafCount;
-        for (int i = 0; i < leafCount; ++i) {
-            int leaf = q.front();
-            q.pop();
-            for (int neighbor: adj[leaf]) {
-                deg[neighbor]--;
-                if (deg[neighbor] == 1) {
-                    q.push(neighbor);
+    while (remainingVertices > 2) {
+        int currentLeafCount = static_cast<int>(leafQueue.size());
+        remainingVertices -= currentLeafCount;
+
+        for (int leafIndex = 0; leafIndex < currentLeafCount; ++leafIndex) {
+            int currentLeaf = leafQueue.front();
+            leafQueue.pop();
+
+            for (int neighbor: adjacencyList[currentLeaf]) {
+                currentDegree[neighbor]--;
+                if (currentDegree[neighbor] == 1) {
+                    leafQueue.push(neighbor);
                 }
             }
         }
     }
 
     vector<int> centers;
-    while (!q.empty()) {
-        centers.push_back(q.front());
-        q.pop();
+    while (!leafQueue.empty()) {
+        centers.push_back(leafQueue.front());
+        leafQueue.pop();
     }
 
     sort(centers.begin(), centers.end());
@@ -117,36 +121,38 @@ vector<int> findCenters(
 // Сохранение в файл
 void saveResult(
     const vector<int> &centers,
-    const string &filename
+    const string &outputFilename
 ) {
-    ofstream fout(filename);
-    fout << centers.size() << "\n";
-    for (size_t i = 0; i < centers.size(); ++i) {
-        if (i > 0) fout << " ";
-        fout << centers[i];
+    ofstream outputFile(outputFilename);
+    outputFile << centers.size() << "\n";
+    for (size_t centerIndex = 0; centerIndex < centers.size(); ++centerIndex) {
+        if (centerIndex > 0) {
+            outputFile << " ";
+        }
+        outputFile << centers[centerIndex];
     }
-    fout << "\n";
-    fout.close();
-    cout << "Результат сохранён в файл '" << filename << "'\n";
+    outputFile << "\n";
+    outputFile.close();
+    cout << "Результат сохранён в файл '" << outputFilename << "'\n";
 }
 
 int main() {
-    const string INPUT_FILE = "input.txt";
-    const string OUTPUT_FILE = "output.txt";
+    const string INPUT_FILE_NAME = "input.txt";
+    const string OUTPUT_FILE_NAME = "output.txt";
 
-    int count;
-    vector<vector<int> > adj;
+    int totalVertices = 0;
+    vector<vector<int> > adjacencyList;
 
-    cout << "Загрузка дерева из файла '" << INPUT_FILE << "'...\n";
-    if (!loadTree(INPUT_FILE, count, adj)) {
+    cout << "Загрузка дерева из файла '" << INPUT_FILE_NAME << "'...\n";
+    if (!loadTree(INPUT_FILE_NAME, totalVertices, adjacencyList)) {
         cout << "Не удалось загрузить дерево. Завершение программы.\n";
         return 1;
     }
 
-    cout << "Дерево успешно загружено (" << count << " компьютеров).\n";
+    cout << "Дерево успешно загружено (" << totalVertices << " компьютеров).\n";
 
     // Основной интерактивный цикл
-    char choice;
+    char userChoice;
     do {
         cout << "\nМеню:\n";
         cout << "1 — Показать дерево на экране\n";
@@ -154,27 +160,29 @@ int main() {
         cout << "3 — Сохранить результат в файл\n";
         cout << "0 — Выйти\n";
         cout << "Ваш выбор: ";
-        cin >> choice;
+        cin >> userChoice;
 
-        switch (choice) {
+        switch (userChoice) {
             case '1': {
-                printTree(adj, count);
+                printTree(adjacencyList, totalVertices);
                 break;
             }
             case '2': {
-                vector<int> centers = findCenters(adj, count);
+                vector<int> centers = findCenters(adjacencyList, totalVertices);
                 cout << "Количество оптимальных компьютеров: " << centers.size() << "\n";
                 cout << "Номера: ";
-                for (size_t i = 0; i < centers.size(); ++i) {
-                    if (i > 0) cout << " ";
-                    cout << centers[i];
+                for (size_t index = 0; index < centers.size(); ++index) {
+                    if (index > 0) {
+                        cout << " ";
+                    }
+                    cout << centers[index];
                 }
                 cout << "\n";
                 break;
             }
             case '3': {
-                vector<int> centers = findCenters(adj, count);
-                saveResult(centers, OUTPUT_FILE);
+                vector<int> centers = findCenters(adjacencyList, totalVertices);
+                saveResult(centers, OUTPUT_FILE_NAME);
                 break;
             }
             case '0': {
@@ -185,7 +193,7 @@ int main() {
                 cout << "Некорректный выбор. Попробуйте снова.\n";
             }
         }
-    } while (choice != '0');
+    } while (userChoice != '0');
 
     return 0;
 }
