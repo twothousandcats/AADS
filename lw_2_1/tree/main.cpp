@@ -1,89 +1,191 @@
-// связный ациклический граф
-// цель: минимизация максимального пути
-// общая O(n)
-
 #include <iostream>
-#include <fstream>
 #include <vector>
 #include <queue>
+#include <fstream>
 #include <algorithm>
+#include <string>
 
-constexpr auto INPUT_FILE_NAME = "input.txt";
-constexpr auto OUTPUT_FILE_NAME = "output.txt";
+using namespace std;
 
-int main() {
-    std::ifstream fin(INPUT_FILE_NAME);
-    std::ofstream fout(OUTPUT_FILE_NAME);
+/**
+ * Список смежности - хранение дерева,
+ * Массив степеней - degree[v] = количество соседей у вершины v
+ * Очередь - хранение текущих листьев(degree == 1)
+ *
+ * условие: Время счета не должно превышать 2 сек (сложность O(N))
+ */
 
-    int N;
-
-    // одно устройство
-    fin >> N;
-    if (N == 1) {
-        fout << "1\n1\n";
-        return 0;
+// Загрузка дерева из файла
+bool loadTree(
+    const string &filename,
+    int &count,
+    vector<vector<int> > &adj
+) {
+    ifstream fin(filename);
+    if (!fin.is_open()) {
+        cerr << "Ошибка: не удалось открыть файл '" << filename << "'\n";
+        return false;
     }
 
-    std::vector<std::vector<int> > graph(N + 1);
-    std::vector<int> degree(N + 1, 0);
+    fin >> count;
+    if (count < 1) {
+        cerr << "Ошибка: некорректное число вершин\n";
+        return false;
+    }
 
-    // читаем ребра дерева
-    for (int i = 0; i < N - 1; ++i) {
+    adj.assign(count + 1, vector<int>());
+    for (int i = 0; i < count - 1; ++i) {
         int u, v;
         fin >> u >> v;
-        graph[u].push_back(v);
-        graph[v].push_back(u);
-        degree[u]++;
-        degree[v]++;
+        if (u < 1 || u > count || v < 1 || v > count) {
+            cerr << "Ошибка: некорректный номер компьютера\n";
+            return false;
+        }
+        adj[u].push_back(v);
+        adj[v].push_back(u);
+    }
+    fin.close();
+    return true;
+}
+
+// Вывод дерева в виде списка смежности
+void printTree(
+    const vector<vector<int> > &adj,
+    int count
+) {
+    cout << "Дерево:\n";
+    for (int i = 1; i <= count; ++i) {
+        cout << i << ": ";
+        for (size_t j = 0; j < adj[i].size(); ++j) {
+            if (j > 0) cout << ", ";
+            cout << adj[i][j];
+        }
+        cout << '\n';
+    }
+}
+
+// Поиск центров дерева
+vector<int> findCenters(
+    const vector<vector<int> > &adj,
+    int n
+) {
+    if (n == 1) {
+        return {1};
     }
 
-    // Q текущих листьев (степень 1)
-    std::queue<int> leaves;
-    for (int i = 1; i <= N; ++i) {
+    vector<int> degree(n + 1, 0);
+    for (int i = 1; i <= n; ++i) {
+        degree[i] = adj[i].size();
+    }
+
+    queue<int> q;
+    for (int i = 1; i <= n; ++i) {
         if (degree[i] == 1) {
-            leaves.push(i);
+            q.push(i);
         }
     }
 
-    int remainingNodes = N;
+    int remaining = n;
+    // Копируем degree, чтобы не портить оригинал
+    vector<int> deg = degree;
 
-    // Удаляем листья слой за слоем, пока не останется 1 или 2 вершины
-    while (remainingNodes > 2) {
-        int currentLeavesCount = leaves.size();
-        remainingNodes -= currentLeavesCount;
-
-        // Удаляем все листья текущего уровня
-        for (int i = 0; i < currentLeavesCount; ++i) {
-            int leaf = leaves.front();
-            leaves.pop();
-
-            // Уменьшаем степень соседей
-            for (int neighbor: graph[leaf]) {
-                degree[neighbor]--;
-                // Если сосед стал листом —> добавляем в очередь
-                if (degree[neighbor] == 1) {
-                    leaves.push(neighbor);
+    while (remaining > 2) {
+        int leafCount = q.size();
+        remaining -= leafCount;
+        for (int i = 0; i < leafCount; ++i) {
+            int leaf = q.front();
+            q.pop();
+            for (int neighbor: adj[leaf]) {
+                deg[neighbor]--;
+                if (deg[neighbor] == 1) {
+                    q.push(neighbor);
                 }
             }
         }
     }
 
-    // Оставшиеся вершины в очереди — центры дерева
-    std::vector<int> centers;
-    while (!leaves.empty()) {
-        centers.push_back(leaves.front());
-        leaves.pop();
+    vector<int> centers;
+    while (!q.empty()) {
+        centers.push_back(q.front());
+        q.pop();
     }
 
-    std::sort(centers.begin(), centers.end());
+    sort(centers.begin(), centers.end());
+    return centers;
+}
 
-    fout << centers.size() << '\n';
+// Сохранение в файл
+void saveResult(
+    const vector<int> &centers,
+    const string &filename
+) {
+    ofstream fout(filename);
+    fout << centers.size() << "\n";
     for (size_t i = 0; i < centers.size(); ++i) {
-        if (i > 0) fout << ' ';
+        if (i > 0) fout << " ";
         fout << centers[i];
     }
+    fout << "\n";
+    fout.close();
+    cout << "Результат сохранён в файл '" << filename << "'\n";
+}
 
-    fout << '\n';
+int main() {
+    const string INPUT_FILE = "input.txt";
+    const string OUTPUT_FILE = "output.txt";
+
+    int count;
+    vector<vector<int> > adj;
+
+    cout << "Загрузка дерева из файла '" << INPUT_FILE << "'...\n";
+    if (!loadTree(INPUT_FILE, count, adj)) {
+        cout << "Не удалось загрузить дерево. Завершение программы.\n";
+        return 1;
+    }
+
+    cout << "Дерево успешно загружено (" << count << " компьютеров).\n";
+
+    // Основной интерактивный цикл
+    char choice;
+    do {
+        cout << "\nМеню:\n";
+        cout << "1 — Показать дерево на экране\n";
+        cout << "2 — Найти оптимальные компьютеры (центры дерева)\n";
+        cout << "3 — Сохранить результат в файл\n";
+        cout << "0 — Выйти\n";
+        cout << "Ваш выбор: ";
+        cin >> choice;
+
+        switch (choice) {
+            case '1': {
+                printTree(adj, count);
+                break;
+            }
+            case '2': {
+                vector<int> centers = findCenters(adj, count);
+                cout << "Количество оптимальных компьютеров: " << centers.size() << "\n";
+                cout << "Номера: ";
+                for (size_t i = 0; i < centers.size(); ++i) {
+                    if (i > 0) cout << " ";
+                    cout << centers[i];
+                }
+                cout << "\n";
+                break;
+            }
+            case '3': {
+                vector<int> centers = findCenters(adj, count);
+                saveResult(centers, OUTPUT_FILE);
+                break;
+            }
+            case '0': {
+                cout << "Завершение работы.\n";
+                break;
+            }
+            default: {
+                cout << "Некорректный выбор. Попробуйте снова.\n";
+            }
+        }
+    } while (choice != '0');
 
     return 0;
 }

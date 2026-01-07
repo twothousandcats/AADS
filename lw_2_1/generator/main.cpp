@@ -70,7 +70,7 @@ void generateRandomTree(std::ofstream &out, int N, std::mt19937 &rng) {
 
 int main() {
     const int N = 10; // размерность
-    const TreeType TYPE = CHAIN; // CHAIN / STAR / RANDOM
+    const TreeType TYPE = RANDOM; // CHAIN / STAR / RANDOM
 
     std::ofstream fout("input.txt");
     fout << N << "\n";
